@@ -1,6 +1,6 @@
 # VEX V5 — LemLib starter
 
-Fresh PROS V5 project with **PROS 4.2.2** and official **LemLib 0.5.6**.
+Fresh PROS V5 project with **PROS 4.2.2** and official **LemLib 0.5.6**, plus **liblvgl 9.2.0** for the example screen display.
 
 `src/main.cpp` is the unmodified official LemLib v0.5.6 example. All ports,
 dimensions, tracking wheel settings, PID values and tuning constants are the
