@@ -9,7 +9,7 @@ pros::MotorGroup leftMotors({-10,-9},
                             pros::MotorGearset::blue); // left motor group - ports 3 (reversed), 4, 5 (reversed)
 pros::MotorGroup rightMotors({7, 8}, pros::MotorGearset::blue); // right motor group - ports 6, 7, 9 (reversed)
 
-pros :: MotorGroup dr4b({-1,11}, pros::MotorGearset::red); 
+pros :: MotorGroup dr4b({-1,11}, pros::MotorGearset::red);
 
 pros :: Motor claw (-2, pros::MotorGearset::green);
 
@@ -17,7 +17,7 @@ pros :: Motor intake(19, pros::MotorGearset::blue);
 
 pros :: Motor claw_wrist(3, pros::MotorGearset::green);
 // Inertial Sensor on port 12
-pros :: Imu imu (-12); 
+pros :: Imu imu (12);
 
 // tracking wheels
 // horizontal tracking wheel encoder. Rotation sensor, port 4, not reversed
@@ -32,16 +32,16 @@ lemlib::TrackingWheel vertical(&verticalEnc, lemlib::Omniwheel::NEW_2, -2.5);
 // drivetrain settings
 lemlib::Drivetrain drivetrain(&leftMotors, // left motor group
                               &rightMotors, // right motor group
-                              10.725, // 10.725 inch track width
+                              10.625, // 10.625 inch track width
                               lemlib::Omniwheel::NEW_325, // using new 3.25" omnis
                               360, // drivetrain rpm is 360
-                              8 // horizontal drift is 2. If we had traction wheels, it would been 8
+                              8 // horizontal drift is 2. If we had traction wheels, it would have been 8
 );
 
 // lateral motion controller
-lemlib::ControllerSettings linearController(20, // proportional gain (kP)
-                                            0.001, // integral gain (kI)
-                                            7, // derivative gain (kD)
+lemlib::ControllerSettings linearController(10, // proportional gain (kP)
+                                            0, // integral gain (kI)
+                                            10, // derivative gain (kD)
                                             0, // anti windup
                                             0, // small error range, in inches
                                             0, // small error range timeout, in milliseconds
@@ -51,15 +51,15 @@ lemlib::ControllerSettings linearController(20, // proportional gain (kP)
 );
 
 // angular motion controller
-lemlib::ControllerSettings angularController(10, // proportional gain (kP)
+lemlib::ControllerSettings angularController(2, // proportional gain (kP)
                                              0, // integral gain (kI)
-                                             1, // derivative gain (kD)
+                                             12, // derivative gain (kD)
                                              0, // anti windup
                                              0, // small error range, in degrees
                                              0, // small error range timeout, in milliseconds
                                              0, // large error range, in degrees
                                              0, // large error range timeout, in milliseconds
-                                             2.5 // maximum acceleration (slew)
+                                             0 // maximum acceleration (slew)
 );
 
 // sensors for odometry
@@ -94,17 +94,16 @@ lemlib::Chassis chassis(drivetrain, linearController, angularController, sensors
 void initialize() {
     pros::lcd::initialize(); // initialize brain screen
     chassis.calibrate(); // calibrate sensors
-    imu.reset(10000); // calibrate imu
-    pros::delay(1000); // wait for imu to calibrate
+    pros::delay(7000); // wait for imu to calibrate
     chassis.setPose(0, 0, 0); // set the starting pose of the robot to x: 0, y: 0, theta: 0
     pros:: delay(3000);
-    
-    
-    
-    
-    dr4b.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE); // set lift to hold mode
-    claw_wrist.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE); // set lift to hold mode
-    claw.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE); // set lift to hold mode
+
+
+
+
+    dr4b.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD); // set lift to hold mode
+    claw_wrist.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD); // set lift to hold mode
+    claw.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD); // set lift to hold mode
 
     // the default rate is 50. however, if you need to change the rate, you
     // can do the following.
@@ -183,6 +182,7 @@ void autonomous() {
 void opcontrol() {
     // controller
     // loop to continuously update motors
+    pros::lcd::print(0, "Heading: %f", imu.get_heading());
     while (true) {
         // get joystick positions
         int leftY = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
@@ -216,9 +216,9 @@ void opcontrol() {
             claw_wrist.move(0);
         }// delay to save resources
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_A)) {
-           
+
         chassis.turnToHeading(180, 10000);
-            
+
             //chassis.moveToPoint(0,10,7000);
             //pros::delay(300);
             //chassis.moveToPoint(0,0,7000, {.forwards = false});
