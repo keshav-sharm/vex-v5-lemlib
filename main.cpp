@@ -85,6 +85,8 @@ lemlib::ExpoDriveCurve steerCurve(3, // joystick deadband out of 127
 // create the chassis
 lemlib::Chassis chassis(drivetrain, linearController, angularController, sensors, &throttleCurve, &steerCurve);
 
+lemlib::Pose current = chassis.getPose();
+
 /**
  * Runs initialization code. This occurs as soon as the program is started.
  *
@@ -104,6 +106,9 @@ void initialize() {
     dr4b.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD); // set lift to hold mode
     claw_wrist.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD); // set lift to hold mode
     claw.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD); // set lift to hold mode
+
+    dr4b.tare_position(); // set lift to 0
+    claw_wrist.tare_position(); // set lift to 0
 
     // the default rate is 50. however, if you need to change the rate, you
     // can do the following.
@@ -191,43 +196,68 @@ void opcontrol() {
         chassis.arcade(leftY, rightX);
 
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
-            dr4b.move(127 * 0.75);
+            dr4b.move(127);
         } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
             dr4b.move(-127 * 0.25);
         } else {
             dr4b.move(0);
         }
 
-         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
-            intake.move(-127);
-            claw.move(-127);
-        } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
+         //if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
+            //claw.move(-600000);
+            //claw_wrist.move(500000);
+            //dr4b.move(5000000 * 0.25);
+            //pros::delay(3000);
+            //claw.move(0);
+            //claw_wrist.move(0);
+            //dr4b.move(0);
+        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
             intake.move(127);
             claw.move(127);
+         } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
+            intake.move(-127);
+            claw.move(-127);    
         } else {
             intake.move(0);
             claw.move(0);
         }
-         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)) {
+         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_Y)) {
             claw_wrist.move(127);
+        } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_LEFT)){
+            //relative wris position flat;
         } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN)){
             claw_wrist.move(-127);
         } else {
             claw_wrist.move(0);
         }// delay to save resources
-        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_A)) {
-               
-        chassis.turnToHeading(180,10000);
-        
-        chassis.moveToPoint(0,10,5000);
-        pros::delay(300);
-        chassis.moveToPoint(0,0,5000, {.forwards = false});
-        pros::delay(300);
-        chassis.moveToPoint(0,20,5000 );
-        pros::delay(300);
-        chassis.moveToPoint(0,0,5000, {.forwards = false});
 
-        }
-        pros::delay(10);
+        //if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
+            //dr4b.move_absolute(100, 200);
+            //claw_wrist.move_absolute(0, 200);
+        //}
+        //if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_Y)) {
+            //dr4b.move_absolute(0, 200);
+            //claw_wrist.move_absolute(200, 200);
+            //claw.move(60000);
+            //rightMotors.move(6000000);
+            //leftMotors.move(6000000);
+            //pros::delay(3000);
+            //claw.move(0);
+            //rightMotors.move(0);
+            //leftMotors.move(0);
+        //}
+        //if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_A)) {
+        //chassis.moveToPoint(current.x, current.y -5, 5000, {.forwards = false});
+        //chassis.waitUntilDone();
+        //claw.move_voltage(-12000);
+        //claw_wrist.move_voltage(1500);
+        //pros :: delay (3000);
+        //claw.move(0);
+        // pros::delay (3000);
+        //chassis.moveToPoint(5, 0, 5000);
+        //chassis.waitUntilDone();
+        //chassis.turnToHeading(180, 5000);
     }
-}
+        pros::delay(10);
+ }
+//}
