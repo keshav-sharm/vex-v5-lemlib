@@ -1,11 +1,14 @@
+// MAIN ROBOT FILE: keep robot ports, PID settings, and controller routines here.
+// A runs the toggle practice route; X runs the lift/wrist/outtake macro.
+// Competition autonomous() is currently empty.
 #include "main.h"
 #include "lemlib/api.hpp" // IWYU pragma: keep
 // controller
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 // motor groups
 pros::MotorGroup leftMotors({-10,-9},
-                            pros::MotorGearset::blue); // left motor group - ports 3 (reversed), 4, 5 (reversed)
-pros::MotorGroup rightMotors({7, 8}, pros::MotorGearset::blue); // right motor group - ports 6, 7, 9 (reversed)
+                            pros::MotorGearset::blue); // left drive: ports 10 and 9, both reversed
+pros::MotorGroup rightMotors({7, 8}, pros::MotorGearset::blue); // right drive: ports 7 and 8
 pros :: MotorGroup dr4b({-1,11}, pros::MotorGearset::red);
 pros :: Motor claw (-2, pros::MotorGearset::green);
 pros :: Motor intake(19, pros::MotorGearset::blue);
@@ -138,9 +141,9 @@ void opcontrol() {
         // move the chassis with curvature drive
         chassis.arcade(leftY, rightX);
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
-            dr4b.move(127 * 0.75);
-        } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
             dr4b.move(-127 * 0.25);
+        } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
+            dr4b.move(127 * 0.75);
         } else {
             dr4b.move(0);
         }
@@ -162,19 +165,13 @@ void opcontrol() {
             intake.move(0);
             claw.move(0);
         }
-         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP)) {
+         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)) {
             claw_wrist.move(127);
         } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN)){
-            //relative wris position flat;
-        } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_LEFT)){
             claw_wrist.move(-127);
         } else {
             claw_wrist.move(0);
         }// delay to save resources
-        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
-            dr4b.move_absolute(100, 200);
-            claw_wrist.move_absolute(0, 200);
-         }
          if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_Y)) {
             dr4b.move_absolute(0, 200);
             claw_wrist.move_absolute(200, 200);
@@ -241,3 +238,28 @@ void opcontrol() {
         pros::delay(10);
     }
 }
+
+/*
+OLD TUNING REFERENCES ONLY — these do not run or change the current controls.
+
+The removed root-level main.cpp contained this older PID test sequence:
+    chassis.turnToHeading(180, 10000);
+    chassis.moveToPoint(0, 10, 5000);
+    pros::delay(300);
+    chassis.moveToPoint(0, 0, 5000, {.forwards = false});
+    pros::delay(300);
+    chassis.moveToPoint(0, 20, 5000);
+    pros::delay(300);
+    chassis.moveToPoint(0, 0, 5000, {.forwards = false});
+Those targets are absolute coordinates; the sequence assumed a suitable start pose.
+
+The unused original pin-pickup helper had these settings:
+    Wrist up: +127 for 900 ms, rollers off.
+    Intake and claw: -127 for 500 ms, wrist stopped.
+    Wrist down: -127 for 350 ms, intake and claw continuing at -127.
+    Intake and claw: -127 for another 500 ms, then stop all three.
+It supported cancellation and ignored retriggers while busy; it was replaced
+by the current teammate-based controls. It is not the current X macro.
+Full originals and the helper's tests are saved outside this project as a backup
+and are also recoverable from Git history before this cleanup.
+*/

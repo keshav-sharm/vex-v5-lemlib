@@ -2,6 +2,21 @@
 
 PROS 4.2.2 / LemLib 0.5.6 project using the teammate's supplied robot configuration and controller code as the base for `src/main.cpp`.
 
+## Main file to edit
+
+**`src/main.cpp` is the single robot-code file.** It contains the motor ports,
+PID settings, initialization, manual controls, A-button practice route, and
+X-button macro. The build compiles `src/`; a root-level `main.cpp` is not used.
+The older duplicate and unused pickup helper/tests have been removed. Useful
+old tuning sequences are kept in an inactive reference comment at the bottom
+of `src/main.cpp`; complete originals were backed up outside the project and
+remain recoverable from Git history.
+
+Keep `include/main.h`, the PROS/LemLib headers and firmware libraries, `Makefile`,
+`common.mk`, and `project.pros`: they are required to build this one robot file.
+The competition `autonomous()` function is currently empty. The A-button route
+runs only during driver control when A is pressed.
+
 ## A-button macro: one toggle pulse, forward retreat, turn
 
 Start from the same position and wrist height as IMG_4824, with the toggle yellow.
@@ -33,18 +48,16 @@ The practice macro resets the odometry coordinates; `autonomous()` is empty.
 
 - **X, pressed once:** starts wrist-up, DR4B-up, and claw outtake together with a gentle 100 ms power step. The DR4B uses **300 ms total** at +40 then +60 as an initial timed estimate toward a **3-inch rise**; this height is not calibrated. The wrist runs **1 second** at +40 / +80 / +40; the claw outtakes **2 seconds** at +60 / +100 / +60. Each mechanism brakes when its time ends. The drive is braked and the separate intake stopped during the macro. Test from the same lift/wrist starting position and tune the lift's `pros::delay(200)` after the initial 100 ms step to adjust its rise.
 - **A, pressed once:** runs the push/outtake sequence directly in driver control. Holding A does not repeat it.
-- **L1 / L2:** lift up / down.
+- **L1 / L2:** lift down / up, retaining the original down/up power levels.
 - **R1 / R2:** intake and claw rollers inward / outward.
-- **Up / Left:** wrist in the positive / negative direction.
-- **Down:** the teammate's unfinished wrist-position placeholder.
+- **B / Down, held:** wrist up / down; releasing stops the wrist.
 - **Right, pressed once:** the teammate's 3-second claw/wrist/lift macro.
-- **B, pressed once:** the teammate's lift/wrist position command.
 - **Y, pressed once:** the teammate's separate 3-second forward-drive/lift/wrist/claw macro, including full-power forward drive.
 
 Use the **Brain Stop button** to stop the program during a blocking test. Manual
 driver inputs are not processed during the A, X, Right, or Y blocking sequences.
-The previous pickup macro is no longer connected to this replacement main file;
-its header/test files are retained locally as reference.
+The previous pickup macro is no longer connected to this main file; its timing
+settings are preserved in the inactive reference comment at the bottom.
 
 The supplied missing final brace was restored, and out-of-range `.move()` powers
 in the Right/Y macros were limited to the valid -127..127 range. Motor ports,
