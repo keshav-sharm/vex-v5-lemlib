@@ -5,19 +5,12 @@
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 // motor groups
-pros::MotorGroup leftMotors({-10,-9},
+pros::MotorGroup leftMotors({-20, -15},
                             pros::MotorGearset::blue); // left motor group - ports 3 (reversed), 4, 5 (reversed)
-pros::MotorGroup rightMotors({7, 8}, pros::MotorGearset::blue); // right motor group - ports 6, 7, 9 (reversed)
+pros::MotorGroup rightMotors({11, 16}, pros::MotorGearset::blue); // right motor group - ports 6, 7, 9 (reversed)
 
-pros :: MotorGroup dr4b({1,-11}, pros::MotorGearset::red); 
-
-pros :: Motor claw (-2, pros::MotorGearset::green);
-
-pros :: Motor intake(19, pros::MotorGearset::blue);
-
-pros :: Motor claw_wrist(3, pros::MotorGearset::green);
 // Inertial Sensor on port 12
-pros :: Imu imu (4); 
+pros :: Imu imu (1); 
 
 // tracking wheels
 // horizontal tracking wheel encoder. Rotation sensor, port 4, not reversed
@@ -39,9 +32,9 @@ lemlib::Drivetrain drivetrain(&leftMotors, // left motor group
 );
 
 // lateral motion controller
-lemlib::ControllerSettings linearController(10, // proportional gain (kP)
+lemlib::ControllerSettings linearController(12, // proportional gain (kP)
                                             0, // integral gain (kI)
-                                            10, // derivative gain (kD)
+                                            12, // derivative gain (kD)
                                             0, // anti windup
                                             0, // small error range, in inches
                                             0, // small error range timeout, in milliseconds
@@ -51,9 +44,9 @@ lemlib::ControllerSettings linearController(10, // proportional gain (kP)
 );
 
 // angular motion controller
-lemlib::ControllerSettings angularController(2, // proportional gain (kP)
+lemlib::ControllerSettings angularController(1.5, // proportional gain (kP)
                                              0, // integral gain (kI)
-                                             10, // derivative gain (kD)
+                                             13, // derivative gain (kD)
                                              0, // anti windup
                                              0, // small error range, in degrees
                                              0, // small error range timeout, in milliseconds
@@ -94,10 +87,6 @@ lemlib::Pose current = chassis.getPose();
  * to keep execution time for this mode under a few seconds.
  */
 void initialize() {
-    dr4b.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD); // set lift to hold mode
-    claw_wrist.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD); // set lift to hold mode
-    claw.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-    dr4b.tare_position_all(); // set lift to 0
     pros::lcd::initialize(); // initialize brain screen
     chassis.calibrate(); // calibrate sensors
     pros::delay(300); // wait for imu to calibrate
@@ -105,22 +94,6 @@ void initialize() {
     pros:: delay(300);
     
     
-    
-    
-     // set lift to hold mode
-
-    //dr4b.tare_position(); // set lift to 0
-    //claw_wrist.tare_position(); // set lift to 0
-
-    // the default rate is 50. however, if you need to change the rate, you
-    // can do the following.
-    // lemlib::bufferedStdout().setRate(...);
-    // If you use bluetooth or a wired connection, you will want to have a rate of 10ms
-
-    // for more information on how the formatting for the loggers
-    // works, refer to the fmtlib docs
-
-    // thread to for brain screen and position logging
     pros::Task screenTask([&]() {
         while (true) {
             // print robot location to the brain screen
@@ -155,117 +128,24 @@ ASSET(example_txt); // '.' replaced with "_" to make c++ happy
  * This is an example autonomous routine which demonstrates a lot of the features LemLib has to offer
  */
 void autonomous() {
-        dr4b.move_absolute(0, 30);
-        dr4b.move(-20);  
+    //toggler activation and setup to toggle
+    chassis.moveToPoint(0, 5, 5000); // move to x: 0, y: 5 in 5 seconds
+    chassis.waitUntilDone(); // wait until the movement is done
+    chassis.moveToPoint(0, -1, 5000, {.forwards = false}); // move to x: 0, y: 0 in 5 seconds, backwards
+    chassis.waitUntilDone(); // wait until the movement is done
 
-        current = chassis.getPose();
-        chassis.moveToPoint(current.x, current.y -4, 5000, {.forwards = false, .maxSpeed = 100});
-       
-        
-        claw_wrist.move(127);
-        pros::delay(200);
-        claw_wrist.move(0);
-
-        pros::delay(500);
-        
-        claw.move(-127);
-        
-        
+    //flip and align to goal
 
 
+    //score pin 1
 
-        //current = chassis.getPose();
-        //chassis.moveToPoint(current.x, current.y -12.5, 2500, {.forwards = false, .maxSpeed = 100});
-        //chassis.waitUntilDone();
-        //pros::delay(300);
 
-        //chassis.turnToHeading(90, 2500);
-        //chassis.waitUntilDone();
-        //pros::delay(300);
+    //align to pin 2
 
-        //claw_wrist.move_voltage(1500);
-        //pros::delay(300);
-        //claw.move(-127);
+    //pickup pin 2 and align to goal
 
-        //chassis.setPose(0, 0, 0);
-        //current = chassis.getPose();
-        //chassis.moveToPoint(current.x, current.y -12.5, 2500, {.forwards = false, .maxSpeed = 100});
-        //chassis.waitUntilDone();
-        //pros::delay(300);
-
-        
-
-        //current = chassis.getPose();
-        //chassis.moveToPoint(current.x, current.y -12.5, 5000, {.forwards = false, .maxSpeed = 100});
-        //chassis.waitUntilDone();
-        //pros::delay(800);
-        
-        //current = chassis.getPose();
-        //chassis.moveToPoint(current.x, current.y -14, 5000, {.forwards = false, .maxSpeed = 100});
-        //chassis.waitUntilDone();
-        //pros::delay(800);
-        
-        //current = chassis.getPose();
-        //chassis.moveToPoint(current.x, current.y -12.5, 5000, {.forwards = false, .maxSpeed = 100});
-        //chassis.waitUntilDone();
-        //pros::delay(800);
-        
-        //current = chassis.getPose();
-        //chassis.moveToPoint(current.x, current.y -14, 5000, {.forwards = false, .maxSpeed = 100});
-        //chassis.waitUntilDone();
-        //pros::delay(800);
-        
-        //current = chassis.getPose();
-        
-        //current = chassis.getPose();
-        //chassis.moveToPoint(current.x, current.y -12.5, 5000, {.forwards = false, .maxSpeed = 100});
-        //chassis.waitUntilDone();
-        //pros::delay(800);
-        
-        //current = chassis.getPose();
-        //chassis.moveToPoint(current.x, current.y -14, 5000, {.forwards = false, .maxSpeed = 100});
-        //chassis.waitUntilDone();
-        //pros::delay(800);
-        
-        //current = chassis.getPose();
-        //pros::delay(800);
-        
-        //current = chassis.getPose();
-        //chassis.moveToPoint(current.x, current.y -10, 5000, {.forwards = false, .maxSpeed = 100});
-        //chassis.waitUntilDone();
-        //pros::delay(800);
-        
-        //claw_wrist.move_voltage(1500);
-        //pros::delay(1000);
-        //claw.move(-2000);
-
-    //     
-// Move to x: 20 and y: 15, and face heading 90. Timeout set to 4000 ms
-//     chassis.moveToPose(20, 15, 90, 4000);
-//     // Move to x: 0 and y: 0 and face heading 270, going backwards. Timeout set to 4000ms
-//     chassis.moveToPose(0, 0, 270, 4000, {.forwards = false});
-//     // cancel the movement after it has traveled 10 inches
-//     chassis.waitUntil(10);
-//     chassis.cancelMotion();
-//     // Turn to face the point x:45, y:-45. Timeout set to 1000
-//     // dont turn faster than 60 (out of a maximum of 127)
-//     chassis.turnToPoint(45, -45, 1000, {.maxSpeed = 60});
-//     // Turn to face a direction of 90º. Timeout set to 1000
-//     // will always be faster than 100 (out of a maximum of 127)
-//     // also force it to turn clockwise, the long way around
-//     chassis.turnToHeading(90, 1000, {.direction = AngularDirection::CW_CLOCKWISE, .minSpeed = 100});
-//     // Follow the path in path.txt. Lookahead at 15, Timeout set to 4000
-//     // following the path with the back of the robot (forwards = false)
-//     // see line 116 to see how to define a path
-//     chassis.follow(example_txt, 15, 4000, false);
-//     // wait until the chassis has traveled 10 inches. Otherwise the code directly after
-//     // the movement will run immediately
-//     // Unless its another movement, in which case it will wait
-//     chassis.waitUntil(10);
-//     pros::lcd::print(4, "Traveled 10 inches during pure pursuit!");
-//     // wait until the movement is done
-//     chassis.waitUntilDone();
-//     pros::lcd::print(4, "pure pursuit finished!");
+    
+    //score pin 2
  }
 
 /**
@@ -281,70 +161,20 @@ void opcontrol() {
         int rightX = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
         // move the chassis with curvature drive
         chassis.arcade(leftY, rightX);
-
-        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
-            dr4b.move(127);
-        } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
-            dr4b.move(-127);
-        } else {
-            dr4b.move(0);
-        }
-
-         //if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
-            //claw.move(-600000);
-            //claw_wrist.move(500000);
-            //dr4b.move(5000000 * 0.25);
-            //pros::delay(3000);
-            //claw.move(0);
-            //claw_wrist.move(0);
-            //dr4b.move(0);
-        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
-            intake.move(127);
-            claw.move(127);
-         } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
-            intake.move(-127);
-            claw.move(-127);    
-        } else {
-            intake.move(0);
-            claw.move(0);
-        }
-         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)) {
-            claw_wrist.move(127);
-        } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN)){
-            claw_wrist.move(-127);
-        } else {
-            claw_wrist.move(0);
-        }// delay to save resources
-
-        //if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
-            //dr4b.move_absolute(100, 200);
-            //claw_wrist.move_absolute(0, 200);
-        //}
-        //if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_Y)) {
-            //dr4b.move_absolute(0, 200);
-            //claw_wrist.move_absolute(200, 200);
-            //claw.move(60000);
-            //rightMotors.move(6000000);
-            //leftMotors.move(6000000);
-            //pros::delay(3000);
-            //claw.move(0);
-            //rightMotors.move(0);
-            //leftMotors.move(0);
-        //}
+    
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_A)) {
         
-
-        //chassis.moveToPoint(current.x, current.y -5, 5000, {.forwards = false});
-        //chassis.waitUntilDone();
-        //claw.move_voltage(-12000);
-        //claw_wrist.move_voltage(1500);
-        //pros :: delay (3000);
-        //claw.move(0);
-         //pros::delay (3000);
-        //chassis.moveToPoint(5, 0, 5000);
-        //chassis.waitUntilDone();
+        
         //chassis.turnToHeading(180, 5000);
-    }
+        //chassis.moveToPoint(0, 10, 5000);
+        //chassis.waitUntilDone();
+        //chassis.moveToPoint(0, 0, 5000, {.forwards = false});
+        //chassis.waitUntilDone();
+        //chassis.moveToPoint(0, 20, 5000);
+        //chassis.waitUntilDone(); 
+        //chassis.moveToPoint(0, 0, 5000, {.forwards = false});
+        }
         pros::delay(10);
  }
 }
+
