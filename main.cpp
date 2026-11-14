@@ -6,11 +6,17 @@ pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 // motor groups
 pros::MotorGroup leftMotors({-20, -15},
-                            pros::MotorGearset::blue); // left motor group - ports 3 (reversed), 4, 5 (reversed)
-pros::MotorGroup rightMotors({11, 16}, pros::MotorGearset::blue); // right motor group - ports 6, 7, 9 (reversed)
+                            pros::MotorGearset::blue); 
+pros::MotorGroup rightMotors({11, 16}, pros::MotorGearset::blue); 
+
+pros:: MotorGroup dr4b ({-13, -14}, pros::MotorGearset::red); 
+
+pros::Motor claw(12, pros::MotorGearset::green);
+
+pros::Motor claw_spinner(-19, pros::MotorGearset::green);
 
 // Inertial Sensor on port 12
-pros :: Imu imu (1); 
+pros :: Imu imu (2); 
 
 // tracking wheels
 // horizontal tracking wheel encoder. Rotation sensor, port 4, not reversed
@@ -92,6 +98,10 @@ void initialize() {
     pros::delay(300); // wait for imu to calibrate
     chassis.setPose(0, 0, 0); // set the starting pose of the robot to x: 0, y: 0, theta: 0
     pros:: delay(300);
+
+    dr4b.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD); // set dr4b to hold position when no power is applied
+    claw.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD); // set claw to hold position when no power is applied
+    claw_spinner.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD); // set claw spinner to hold position when no power is applied
     
     
     pros::Task screenTask([&]() {
@@ -128,19 +138,36 @@ ASSET(example_txt); // '.' replaced with "_" to make c++ happy
  * This is an example autonomous routine which demonstrates a lot of the features LemLib has to offer
  */
 void autonomous() {
-    //toggler activation and setup to toggle
-    chassis.moveToPoint(0, 5, 5000); // move to x: 0, y: 5 in 5 seconds
+    //pin clamp/dr4b set
+    claw.move(127);
+    claw_spinner.move(127);
+    dr4b.move_voltage(25 * 100); // move dr4b up to score pin 1
+    
+    //toggler activation and setup to toggle/flip
+    chassis.moveToPoint(0, 2, 500, {.forwards = true, .maxSpeed = 127});
     chassis.waitUntilDone(); // wait until the movement is done
-    chassis.moveToPoint(0, -1, 5000, {.forwards = false}); // move to x: 0, y: 0 in 5 seconds, backwards
+    chassis.moveToPoint(0, -4, 500, {.forwards=false,.maxSpeed = 127}); 
+    chassis.waitUntilDone(); // wait until the movement is done
+    chassis.moveToPoint(0, 16, 2000, {.forwards = true, .maxSpeed = 127}); // move to x: 0, y: 0 in 5 seconds, backwards
     chassis.waitUntilDone(); // wait until the movement is done
 
-    //flip and align to goal
-
+    //align to goal
+    chassis.turnToHeading(90, 2500); // turn to heading 0 in 2.5 
+    chassis.waitUntilDone(); // wait until the movement is done
+    chassis.moveToPoint(20, 16, 2500, {.forwards = true, .maxSpeed = 127}); // move to x: 0, y: 0 in 5 seconds, backwards
+    chassis.waitUntilDone(); // wait until the movement is done
 
     //score pin 1
-
+    dr4b.move_voltage(-30 * 100); // move dr4b down to score pin 1
+    pros::delay(500);
+    claw.move_voltage(-15 * 100);
+    pros::delay(500);
 
     //align to pin 2
+    chassis.moveToPoint(0, 16, 2500, {.forwards = false, .maxSpeed = 127}); // move to x: 0, y: 0 in 5 seconds, backwards
+    chassis.waitUntilDone(); // wait until the movement is done
+    chassis.turnToHeading(0, 2500); // turn to heading 0 in 2.5
+    chassis.waitUntilDone(); // wait until the movement is done
 
     //pickup pin 2 and align to goal
 
@@ -162,17 +189,26 @@ void opcontrol() {
         // move the chassis with curvature drive
         chassis.arcade(leftY, rightX);
     
-        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_A)) {
-        
-        
-        //chassis.turnToHeading(180, 5000);
-        //chassis.moveToPoint(0, 10, 5000);
-        //chassis.waitUntilDone();
-        //chassis.moveToPoint(0, 0, 5000, {.forwards = false});
-        //chassis.waitUntilDone();
-        //chassis.moveToPoint(0, 20, 5000);
-        //chassis.waitUntilDone(); 
-        //chassis.moveToPoint(0, 0, 5000, {.forwards = false});
+        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
+        claw.move(127);
+        claw_spinner.move(127);
+        }
+        else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
+        claw.move(-127);
+        claw_spinner.move(-127);
+        }
+        else {
+        claw.move(0);
+        claw_spinner.move(0);
+        }
+        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
+        dr4b.move(127);
+        }
+        else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
+        dr4b.move(-127);
+        }
+        else {
+        dr4b.move(0);
         }
         pros::delay(10);
  }
