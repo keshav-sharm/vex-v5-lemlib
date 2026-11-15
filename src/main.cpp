@@ -1,6 +1,5 @@
 #include "main.h"
 #include "lemlib/api.hpp" // IWYU pragma: keep
-#include <cmath>
 
 // controller
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
@@ -43,10 +42,10 @@ lemlib::ControllerSettings linearController(12, // proportional gain (kP)
                                             0, // integral gain (kI)
                                             12, // derivative gain (kD)
                                             0, // anti windup
-                                            0, // small error range, in inches
-                                            0, // small error range timeout, in milliseconds
-                                            0, // large error range, in inches
-                                            0, // large error range timeout, in milliseconds
+                                            0.5, // small error range, in inches
+                                            60, // small error settle time, in milliseconds
+                                            0.8, // large error range, in inches
+                                            125, // large error settle time, in milliseconds
                                             5 // maximum acceleration (slew)
 );
 
@@ -55,10 +54,10 @@ lemlib::ControllerSettings angularController(1.5, // proportional gain (kP)
                                              0, // integral gain (kI)
                                              13, // derivative gain (kD)
                                              0, // anti windup
-                                             0, // small error range, in degrees
-                                             0, // small error range timeout, in milliseconds
-                                             0, // large error range, in degrees
-                                             0, // large error range timeout, in milliseconds
+                                             2, // small error range, in degrees
+                                             60, // small error settle time, in milliseconds
+                                             4, // large error range, in degrees
+                                             120, // large error settle time, in milliseconds
                                              0 // maximum acceleration (slew)
 );
 
@@ -101,6 +100,7 @@ void initialize() {
     pros:: delay(300);
 
     dr4b.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD); // hold both lift motors when stopped
+    dr4b.set_encoder_units_all(pros::E_MOTOR_ENCODER_DEGREES);
     claw.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD); // set claw to hold position when no power is applied
     claw_spinner.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD); // set claw spinner to hold position when no power is applied
     
@@ -133,95 +133,84 @@ void competition_initialize() {}
 // this needs to be put outside a function
 ASSET(example_txt); // '.' replaced with "_" to make c++ happy
 
-/**
- * Runs during auto
- *
- * This is an example autonomous routine which demonstrates a lot of the features LemLib has to offer
- */
 void autonomous() {
-    //pin clamp/dr4b set
+    // Motor degrees above the lift's starting position. Tune on the field.
+    constexpr double goalClearanceDeg = 180;
+    constexpr double goalSeatDeg = 98; // seat the pin a little deeper before release
+    dr4b.tare_position_all();
+    dr4b.move_absolute(goalClearanceDeg, 50);
     claw.move(127);
     claw_spinner.move(127);
-    dr4b.move_voltage(25 * 100); // move dr4b up to score pin 1
-    
-    //toggler activation and setup to toggle/flip
-    chassis.moveToPoint(0, 2, 500, {.forwards = true, .maxSpeed = 127});
-    chassis.waitUntilDone(); // wait until the movement is done
-    chassis.moveToPoint(0, -4, 500, {.forwards=false,.maxSpeed = 127}); 
-    chassis.waitUntilDone(); // wait until the movement is done
-    chassis.moveToPoint(0, 16, 2000, {.forwards = true, .maxSpeed = 127}); // move to x: 0, y: 0 in 5 seconds, backwards
-    chassis.waitUntilDone(); // wait until the movement is done
+    chassis.setPose(0, 0, 0);
 
-    // Finish the clockwise turn in place before driving toward the goal.
-    chassis.turnToHeading(90, 1500,
-                         {.direction = lemlib::AngularDirection::CW_CLOCKWISE, .maxSpeed = 127}, false);
-    // Direct approach: X=23 is 3 inches deeper than the original X=20.
-    // This depth is an initial field-test value; coordinates are absolute inches.
-    chassis.moveToPoint(23, 16, 2000, {.forwards = true, .maxSpeed = 127}, false);
+    // Activate the toggler, then line up for the goal.
+    constexpr float goalLaneY = 19.0f; // travel farther after the toggler to line up the drop
+    chassis.moveToPoint(0, 2, 325, {.maxSpeed = 55}, false);
+    chassis.moveToPoint(0, -5, 450, {.forwards = false, .maxSpeed = 75}, false);
+    chassis.moveToPoint(0, goalLaneY, 1100, {.maxSpeed = 110}, false);
+    constexpr float goalHeadingDeg = 97.0f; // compensate for the turn ending slightly short
+    chassis.turnToHeading(goalHeadingDeg, 720,
+                         {.direction = lemlib::AngularDirection::CW_CLOCKWISE, .maxSpeed = 95}, false);
+    chassis.moveToPoint(17.5f, goalLaneY, 925, {.maxSpeed = 105}, false);
+    chassis.moveToPoint(23, goalLaneY, 700, {.maxSpeed = 32}, false);
 
-    // Back away from the reached position, then gently drive back to it.
-    // The 2-inch backoff is a starting test value; keep both moves separate.
-    constexpr float goalBackoffIn = 2.0f;
-    const auto goalContact = chassis.getPose(true); // heading in radians
-    chassis.moveToPoint(goalContact.x - goalBackoffIn * std::sin(goalContact.theta),
-                        goalContact.y - goalBackoffIn * std::cos(goalContact.theta),
-                        700, {.forwards = false, .maxSpeed = 55}, false);
-    chassis.moveToPoint(goalContact.x, goalContact.y, 600,
-                        {.forwards = true, .maxSpeed = 35}, false);
-    chassis.tank(0, 0, true); // stop applying drive power before scoring
+    // Maintain light contact so the chassis does not roll off the goal during scoring.
+    constexpr int goalContactPower = 12;
+    chassis.tank(goalContactPower, goalContactPower, true);
 
-    // Score pin 1: lower less, hold the lift, then open before retreating.
-    constexpr int scoreLowerTimeMs = 400;
-    constexpr int scoreOpenTimeMs = 700; // initial test value; full-open position is not calibrated
+    // Lower the pin into the goal with the claw closed. Open after the seating move.
     claw_spinner.brake();
-    dr4b.move_voltage(-3000);
-    pros::delay(scoreLowerTimeMs);
-    dr4b.brake(); // end the lowering command before opening or backing away
-
-    claw.move_voltage(-6000); // same opening direction as the previous release command
-    pros::delay(scoreOpenTimeMs);
-    claw.brake();
-    pros::delay(150); // let the released pin settle before the chassis moves
-
-    //align to pin 2
-    chassis.moveToPoint(0, 16, 2500, {.forwards = false, .maxSpeed = 127}); // move to x: 0, y: 0 in 5 seconds, backwards
-    chassis.waitUntilDone(); // wait until the movement is done chassi
-    chassis.turnToHeading(0, 2500); // turn to heading 0 in 2.5
-    chassis.waitUntilDone(); // wait until the movement is done
-    
-    
-    // Pickup pin 2: the claw is still open from releasing pin 1.
-    claw.brake(); // hold the open position while approaching
-    claw_spinner.brake(); // wait until the end of the drive to start intaking
-
-    // Short downward pulse before pickup; tune the time toward a 1.5-inch drop.
-    // Lift travel is not calibrated, so this duration is only a starting value.
-    constexpr int pickupLowerVoltageMv = -3000;
-    constexpr int pickupLowerTimeMs = 250;
-    dr4b.move_voltage(pickupLowerVoltageMv);
-    pros::delay(pickupLowerTimeMs);
-    dr4b.brake(); // hold the lift before the forward drive
-
-    const auto pickupStart = chassis.getPose(true); // heading in radians
-    chassis.moveToPoint(pickupStart.x + 18.0f * std::sin(pickupStart.theta),
-                        pickupStart.y + 18.0f * std::cos(pickupStart.theta),
-                        1500, {.forwards = true, .maxSpeed = 127}, false);
-
-    // After the 18-inch drive, close the claw and start intaking inward together.
-    constexpr int pickupCloseTimeMs = 500; // initial timed-closing value for testing
-    claw.move(127);
-    claw_spinner.move(127); // same inward direction as the starting pickup
-    pros::delay(pickupCloseTimeMs);
-    claw.brake(); // hold the pin; leave claw_spinner running
-
-    // Raise after closing the claw, then hold the lift with the intake still on.
-    // Initial timed pulse to tune toward an 8-inch rise; height is not calibrated.
-    constexpr int pickupRaiseVoltageMv = 4000;
-    constexpr int pickupRaiseTimeMs = 900;
-    dr4b.move_voltage(pickupRaiseVoltageMv);
-    pros::delay(pickupRaiseTimeMs);
+    dr4b.move_absolute(goalSeatDeg, 35);
+    pros::delay(500);
     dr4b.brake();
- }
+    claw.move_voltage(-6000);
+    pros::delay(700);
+    claw.brake();
+    pros::delay(50);
+
+    chassis.tank(0, 0, true);
+    chassis.moveToPoint(0, goalLaneY, 1100, {.forwards = false, .maxSpeed = 110}, false);
+
+    // Aim at the pin in field coordinates rather than projecting the current heading.
+    constexpr float pickupX = -0.25f; // turn a little farther counterclockwise toward the cup
+    constexpr float pickupY = 34.0f;
+    constexpr int pickupLowerTimeMs = 425;
+    chassis.turnToPoint(pickupX, pickupY, 950,
+                        {.maxSpeed = 100, .minSpeed = 20, .earlyExitRange = 1.25f}, true);
+    dr4b.move_voltage(-3000);
+    pros::delay(pickupLowerTimeMs);
+    dr4b.brake();
+    chassis.waitUntilDone();
+
+    // Feed the pin inward on contact, then close at the end of the slower approach.
+    claw_spinner.move(127);
+    chassis.moveToPoint(pickupX, pickupY, 1250, {.maxSpeed = 48}, false);
+    claw.move(127);
+    pros::delay(400);
+    claw.brake();
+
+    // Raise while backing onto the same line as the alliance goal, then turn left.
+    // The short approach and lift positions are starting values for the field.
+    constexpr float bigGoalApproachX = -1.5f;
+    constexpr double bigGoalClearanceDeg = 260;
+    constexpr double bigGoalReleaseDeg = 215;
+    dr4b.move_absolute(bigGoalClearanceDeg, 50);
+    chassis.moveToPoint(pickupX, goalLaneY, 1050, {.forwards = false, .maxSpeed = 80}, false);
+    chassis.turnToHeading(270, 900,
+                         {.direction = lemlib::AngularDirection::CCW_COUNTERCLOCKWISE, .maxSpeed = 95},
+                         false);
+    chassis.moveToPoint(bigGoalApproachX, goalLaneY, 450, {.maxSpeed = 25}, false);
+    chassis.tank(0, 0, true);
+
+    // Lower the held pin onto the big goal, then open the claw.
+    claw_spinner.brake();
+    dr4b.move_absolute(bigGoalReleaseDeg, 35);
+    pros::delay(500);
+    dr4b.brake();
+    claw.move_voltage(-6000);
+    pros::delay(700);
+    claw.brake();
+}
 
 /**
  * Runs in driver control
