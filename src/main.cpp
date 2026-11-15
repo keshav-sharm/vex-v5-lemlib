@@ -1,5 +1,6 @@
 #include "main.h"
 #include "lemlib/api.hpp" // IWYU pragma: keep
+#include <cmath>
 
 // controller
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
@@ -158,6 +159,17 @@ void autonomous() {
     // This depth is an initial field-test value; coordinates are absolute inches.
     chassis.moveToPoint(23, 16, 2000, {.forwards = true, .maxSpeed = 127}, false);
 
+    // Back away from the reached position, then gently drive back to it.
+    // The 2-inch backoff is a starting test value; keep both moves separate.
+    constexpr float goalBackoffIn = 2.0f;
+    const auto goalContact = chassis.getPose(true); // heading in radians
+    chassis.moveToPoint(goalContact.x - goalBackoffIn * std::sin(goalContact.theta),
+                        goalContact.y - goalBackoffIn * std::cos(goalContact.theta),
+                        700, {.forwards = false, .maxSpeed = 55}, false);
+    chassis.moveToPoint(goalContact.x, goalContact.y, 600,
+                        {.forwards = true, .maxSpeed = 35}, false);
+    chassis.tank(0, 0, true); // stop applying drive power before scoring
+
     // Score pin 1: lower less, hold the lift, then open before retreating.
     constexpr int scoreLowerTimeMs = 400;
     constexpr int scoreOpenTimeMs = 700; // initial test value; full-open position is not calibrated
@@ -173,14 +185,42 @@ void autonomous() {
 
     //align to pin 2
     chassis.moveToPoint(0, 16, 2500, {.forwards = false, .maxSpeed = 127}); // move to x: 0, y: 0 in 5 seconds, backwards
-    chassis.waitUntilDone(); // wait until the movement is done
+    chassis.waitUntilDone(); // wait until the movement is done chassi
     chassis.turnToHeading(0, 2500); // turn to heading 0 in 2.5
     chassis.waitUntilDone(); // wait until the movement is done
-
-    //pickup pin 2 and align to goal
-
     
-    //score pin 2
+    
+    // Pickup pin 2: the claw is still open from releasing pin 1.
+    claw.brake(); // hold the open position while approaching
+    claw_spinner.brake(); // wait until the end of the drive to start intaking
+
+    // Short downward pulse before pickup; tune the time toward a 1.5-inch drop.
+    // Lift travel is not calibrated, so this duration is only a starting value.
+    constexpr int pickupLowerVoltageMv = -3000;
+    constexpr int pickupLowerTimeMs = 250;
+    dr4b.move_voltage(pickupLowerVoltageMv);
+    pros::delay(pickupLowerTimeMs);
+    dr4b.brake(); // hold the lift before the forward drive
+
+    const auto pickupStart = chassis.getPose(true); // heading in radians
+    chassis.moveToPoint(pickupStart.x + 18.0f * std::sin(pickupStart.theta),
+                        pickupStart.y + 18.0f * std::cos(pickupStart.theta),
+                        1500, {.forwards = true, .maxSpeed = 127}, false);
+
+    // After the 18-inch drive, close the claw and start intaking inward together.
+    constexpr int pickupCloseTimeMs = 500; // initial timed-closing value for testing
+    claw.move(127);
+    claw_spinner.move(127); // same inward direction as the starting pickup
+    pros::delay(pickupCloseTimeMs);
+    claw.brake(); // hold the pin; leave claw_spinner running
+
+    // Raise after closing the claw, then hold the lift with the intake still on.
+    // Initial timed pulse to tune toward an 8-inch rise; height is not calibrated.
+    constexpr int pickupRaiseVoltageMv = 4000;
+    constexpr int pickupRaiseTimeMs = 900;
+    dr4b.move_voltage(pickupRaiseVoltageMv);
+    pros::delay(pickupRaiseTimeMs);
+    dr4b.brake();
  }
 
 /**
