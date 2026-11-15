@@ -1,29 +1,33 @@
-// MAIN ROBOT FILE: keep robot ports, PID settings, and controller routines here.
-// A runs the toggle practice route; X runs the lift/wrist/outtake macro.
-// Competition autonomous() is currently empty.
 #include "main.h"
 #include "lemlib/api.hpp" // IWYU pragma: keep
+
 // controller
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
+
 // motor groups
-pros::MotorGroup leftMotors({-10,-9},
-                            pros::MotorGearset::blue); // left drive: ports 10 and 9, both reversed
-pros::MotorGroup rightMotors({7, 8}, pros::MotorGearset::blue); // right drive: ports 7 and 8
-pros :: MotorGroup dr4b({-1,11}, pros::MotorGearset::red);
-pros :: Motor claw (-2, pros::MotorGearset::green);
-pros :: Motor intake(19, pros::MotorGearset::blue);
-pros :: Motor claw_wrist(3, pros::MotorGearset::green);
+pros::MotorGroup leftMotors({-20, -15},
+                            pros::MotorGearset::blue); 
+pros::MotorGroup rightMotors({11, 16}, pros::MotorGearset::blue); 
+
+pros:: MotorGroup dr4b ({-13, -14}, pros::MotorGearset::red); 
+
+pros::Motor claw(12, pros::MotorGearset::green);
+
+pros::Motor claw_spinner(-19, pros::MotorGearset::green);
+
 // Inertial Sensor on port 12
-pros :: Imu imu (12);
+pros :: Imu imu (2); 
+
 // tracking wheels
 // horizontal tracking wheel encoder. Rotation sensor, port 4, not reversed
-pros::Rotation horizontalEnc(4);
+pros::Rotation horizontalEnc(13);
 // vertical tracking wheel encoder. Rotation sensor, port 18, reversed
 pros::Rotation verticalEnc(18);
 // horizontal tracking wheel. 2.75" diameter, 5.75" offset, back of the robot (negative)
 lemlib::TrackingWheel horizontal(&horizontalEnc, lemlib::Omniwheel::NEW_2, -5.75);
 // vertical tracking wheel. 2.75" diameter, 2.5" offset, left of the robot (negative)
 lemlib::TrackingWheel vertical(&verticalEnc, lemlib::Omniwheel::NEW_2, -2.5);
+
 // drivetrain settings
 lemlib::Drivetrain drivetrain(&leftMotors, // left motor group
                               &rightMotors, // right motor group
@@ -32,21 +36,23 @@ lemlib::Drivetrain drivetrain(&leftMotors, // left motor group
                               360, // drivetrain rpm is 360
                               8 // horizontal drift is 2. If we had traction wheels, it would have been 8
 );
+
 // lateral motion controller
-lemlib::ControllerSettings linearController(10, // proportional gain (kP)
+lemlib::ControllerSettings linearController(12, // proportional gain (kP)
                                             0, // integral gain (kI)
-                                            10, // derivative gain (kD)
+                                            12, // derivative gain (kD)
                                             0, // anti windup
                                             0, // small error range, in inches
                                             0, // small error range timeout, in milliseconds
                                             0, // large error range, in inches
                                             0, // large error range timeout, in milliseconds
-                                            2.5 // maximum acceleration (slew)
+                                            5 // maximum acceleration (slew)
 );
+
 // angular motion controller
-lemlib::ControllerSettings angularController(2, // proportional gain (kP)
+lemlib::ControllerSettings angularController(1.5, // proportional gain (kP)
                                              0, // integral gain (kI)
-                                             10, // derivative gain (kD)
+                                             13, // derivative gain (kD)
                                              0, // anti windup
                                              0, // small error range, in degrees
                                              0, // small error range timeout, in milliseconds
@@ -54,25 +60,32 @@ lemlib::ControllerSettings angularController(2, // proportional gain (kP)
                                              0, // large error range timeout, in milliseconds
                                              0 // maximum acceleration (slew)
 );
+
 // sensors for odometry
-lemlib::OdomSensors sensors(&vertical, // vertical tracking wheel
+lemlib::OdomSensors sensors(nullptr, // vertical tracking wheel
                             nullptr, // vertical tracking wheel 2, set to nullptr as we don't have a second one
-                            &horizontal, // horizontal tracking wheel
+                            nullptr, // horizontal tracking wheel
                             nullptr, // horizontal tracking wheel 2, set to nullptr as we don't have a second one
                             &imu // inertial sensor
 );
+
 // input curve for throttle input during driver control
 lemlib::ExpoDriveCurve throttleCurve(3, // joystick deadband out of 127
                                      10, // minimum output where drivetrain will move out of 127
                                      1.019 // expo curve gain
 );
+
 // input curve for steer input during driver control
 lemlib::ExpoDriveCurve steerCurve(3, // joystick deadband out of 127
                                   10, // minimum output where drivetrain will move out of 127
                                   1.019 // expo curve gain
 );
+
 // create the chassis
 lemlib::Chassis chassis(drivetrain, linearController, angularController, sensors, &throttleCurve, &steerCurve);
+
+lemlib::Pose current = chassis.getPose();
+
 /**
  * Runs initialization code. This occurs as soon as the program is started.
  *
@@ -82,25 +95,15 @@ lemlib::Chassis chassis(drivetrain, linearController, angularController, sensors
 void initialize() {
     pros::lcd::initialize(); // initialize brain screen
     chassis.calibrate(); // calibrate sensors
-    pros::delay(5000); // wait for imu to calibrate
+    pros::delay(300); // wait for imu to calibrate
     chassis.setPose(0, 0, 0); // set the starting pose of the robot to x: 0, y: 0, theta: 0
-    pros:: delay(3000);
+    pros:: delay(300);
 
-
-
-
-    dr4b.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD); // set lift to hold mode
-    claw_wrist.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD); // set lift to hold mode
-    claw.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD); // set lift to hold mode
-    dr4b.tare_position(); // set lift to 0
-    claw_wrist.tare_position(); // set lift to 0
-    // the default rate is 50. however, if you need to change the rate, you
-    // can do the following.
-    // lemlib::bufferedStdout().setRate(...);
-    // If you use bluetooth or a wired connection, you will want to have a rate of 10ms
-    // for more information on how the formatting for the loggers
-    // works, refer to the fmtlib docs
-    // thread to for brain screen and position logging
+    dr4b.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD); // hold both lift motors when stopped
+    claw.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD); // set claw to hold position when no power is applied
+    claw_spinner.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD); // set claw spinner to hold position when no power is applied
+    
+    
     pros::Task screenTask([&]() {
         while (true) {
             // print robot location to the brain screen
@@ -114,23 +117,76 @@ void initialize() {
         }
     });
 }
+
 /**
  * Runs while the robot is disabled
  */
 void disabled() {}
+
 /**
  * runs after initialize if the robot is connected to field control
  */
 void competition_initialize() {}
+
+// get a path used for pure pursuit
+// this needs to be put outside a function
+ASSET(example_txt); // '.' replaced with "_" to make c++ happy
+
 /**
- * Competition autonomous is empty; the practice sequence is in the A-button block below.
+ * Runs during auto
+ *
+ * This is an example autonomous routine which demonstrates a lot of the features LemLib has to offer
  */
-void autonomous() {}
+void autonomous() {
+    //pin clamp/dr4b set
+    claw.move(127);
+    claw_spinner.move(127);
+    dr4b.move_voltage(25 * 100); // move dr4b up to score pin 1
+    
+    //toggler activation and setup to toggle/flip
+    chassis.moveToPoint(0, 2, 500, {.forwards = true, .maxSpeed = 127});
+    chassis.waitUntilDone(); // wait until the movement is done
+    chassis.moveToPoint(0, -4, 500, {.forwards=false,.maxSpeed = 127}); 
+    chassis.waitUntilDone(); // wait until the movement is done
+    chassis.moveToPoint(0, 16, 2000, {.forwards = true, .maxSpeed = 127}); // move to x: 0, y: 0 in 5 seconds, backwards
+    chassis.waitUntilDone(); // wait until the movement is done
+
+    // Finish the clockwise turn in place before driving toward the goal.
+    chassis.turnToHeading(90, 1500,
+                         {.direction = lemlib::AngularDirection::CW_CLOCKWISE, .maxSpeed = 127}, false);
+    // Direct approach: X=23 is 3 inches deeper than the original X=20.
+    // This depth is an initial field-test value; coordinates are absolute inches.
+    chassis.moveToPoint(23, 16, 2000, {.forwards = true, .maxSpeed = 127}, false);
+
+    // Score pin 1: lower less, hold the lift, then open before retreating.
+    constexpr int scoreLowerTimeMs = 400;
+    constexpr int scoreOpenTimeMs = 700; // initial test value; full-open position is not calibrated
+    claw_spinner.brake();
+    dr4b.move_voltage(-3000);
+    pros::delay(scoreLowerTimeMs);
+    dr4b.brake(); // end the lowering command before opening or backing away
+
+    claw.move_voltage(-6000); // same opening direction as the previous release command
+    pros::delay(scoreOpenTimeMs);
+    claw.brake();
+    pros::delay(150); // let the released pin settle before the chassis moves
+
+    //align to pin 2
+    chassis.moveToPoint(0, 16, 2500, {.forwards = false, .maxSpeed = 127}); // move to x: 0, y: 0 in 5 seconds, backwards
+    chassis.waitUntilDone(); // wait until the movement is done
+    chassis.turnToHeading(0, 2500); // turn to heading 0 in 2.5
+    chassis.waitUntilDone(); // wait until the movement is done
+
+    //pickup pin 2 and align to goal
+
+    
+    //score pin 2
+ }
+
 /**
  * Runs in driver control
  */
 void opcontrol() {
-    chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
     // controller
     // loop to continuously update motors
     pros::lcd::print(0, "Heading: %f", imu.get_heading());
@@ -140,126 +196,29 @@ void opcontrol() {
         int rightX = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
         // move the chassis with curvature drive
         chassis.arcade(leftY, rightX);
+    
+        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
+        claw.move(127);
+        claw_spinner.move(127);
+        }
+        else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
+        claw.move(-127);
+        claw_spinner.move(-127);
+        }
+        else {
+        claw.move(0);
+        claw_spinner.move(0);
+        }
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
-            dr4b.move(-127 * 0.25);
-        } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
-            dr4b.move(127 * 0.75);
-        } else {
-            dr4b.move(0);
+        dr4b.move(127);
         }
-         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
-            claw.move(-127);
-            claw_wrist.move(127);
-            dr4b.move(127);
-            pros::delay(3000);
-            claw.move(0);
-            claw_wrist.move(0);
-            dr4b.move(0);
-        } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
-            intake.move(127);
-            claw.move(127);
-         } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
-            intake.move(-127);
-            claw.move(-127);
-        } else {
-            intake.move(0);
-            claw.move(0);
+        else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
+        dr4b.move(-127);
         }
-         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)) {
-            claw_wrist.move(127);
-        } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN)){
-            claw_wrist.move(-127);
-        } else {
-            claw_wrist.move(0);
-        }// delay to save resources
-         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_Y)) {
-            dr4b.move_absolute(0, 200);
-            claw_wrist.move_absolute(200, 200);
-            claw.move(127);
-            rightMotors.move(127);
-            leftMotors.move(127);
-            pros::delay(3000);
-            claw.move(0);
-            rightMotors.move(0);
-            leftMotors.move(0);
-         }
-        // Press X once: wrist up, lift up, and claw outtake together.
-        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) {
-            chassis.setBrakeMode(pros::E_MOTOR_BRAKE_BRAKE);
-            chassis.tank(0, 0, true); // stay still during this macro
-            intake.move(0);
-            // Start all three gently, then increase power after 0.1 second.
-            claw_wrist.move(40);
-            dr4b.move(40);
-            claw.move(60);
-            pros::delay(100);
-
-            claw_wrist.move(80);
-            dr4b.move(60);
-            claw.move(100);
-            pros::delay(200);
-            dr4b.brake();         // 0.3-second lift pulse; tune toward a 3-inch rise
-
-            pros::delay(500);
-            claw_wrist.move(40);  // slow the wrist before stopping
-            pros::delay(200);
-            claw_wrist.brake();   // wrist runs for 1 second total
-
-            pros::delay(800);
-            claw.move(60);        // slow the outtake before stopping
-            pros::delay(200);
-            claw.brake();         // outtake runs for 2 seconds total
-            chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
-        }
-
-        // Press A once to run these steps. Holding A does not repeat them.
-        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
-            dr4b.brake();
-            claw_wrist.brake();
-            intake.move(0);
-            chassis.setBrakeMode(pros::E_MOTOR_BRAKE_BRAKE);
-            // 1. Push backward 3 inches and give the toggle one short pulse.
-            chassis.setPose(0, 0, 0); // measure this move from zero
-            claw.move(127);
-            chassis.moveToPoint(0, -3, 3000, {.forwards = false, .maxSpeed = 30}, true);
-            pros::delay(1400); // first timing estimate for the consistent yellow start
-            claw.brake();
-            chassis.waitUntilDone();
-            pros::delay(3000); // stop for 3 seconds; do not pulse the toggle again
-
-            // 2. Drive forward 4 inches away from the toggle.
-            chassis.setPose(0, 0, 0);
-            chassis.moveToPoint(0, 4, 2000, {.maxSpeed = 50}, false);
-
-            // 3. Turn around 180 degrees after the drive finishes.
-            chassis.turnToHeading(180, 3000, {.maxSpeed = 50}, false);
-            chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
+        else {
+        dr4b.move(0);
         }
         pros::delay(10);
-    }
+ }
 }
 
-/*
-OLD TUNING REFERENCES ONLY — these do not run or change the current controls.
-
-The removed root-level main.cpp contained this older PID test sequence:
-    chassis.turnToHeading(180, 10000);
-    chassis.moveToPoint(0, 10, 5000);
-    pros::delay(300);
-    chassis.moveToPoint(0, 0, 5000, {.forwards = false});
-    pros::delay(300);
-    chassis.moveToPoint(0, 20, 5000);
-    pros::delay(300);
-    chassis.moveToPoint(0, 0, 5000, {.forwards = false});
-Those targets are absolute coordinates; the sequence assumed a suitable start pose.
-
-The unused original pin-pickup helper had these settings:
-    Wrist up: +127 for 900 ms, rollers off.
-    Intake and claw: -127 for 500 ms, wrist stopped.
-    Wrist down: -127 for 350 ms, intake and claw continuing at -127.
-    Intake and claw: -127 for another 500 ms, then stop all three.
-It supported cancellation and ignored retriggers while busy; it was replaced
-by the current teammate-based controls. It is not the current X macro.
-Full originals and the helper's tests are saved outside this project as a backup
-and are also recoverable from Git history before this cleanup.
-*/
